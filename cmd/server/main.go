@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/kosttiik/pvz-service/internal/utils"
 	"github.com/kosttiik/pvz-service/pkg/database"
 )
 
@@ -13,6 +14,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to postgres: %v", err)
 	}
+	utils.Migrate()
 
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "pong")
