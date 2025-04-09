@@ -10,7 +10,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    restart: always
+      redis:
+        condition: service_healthy
 
   db:
     env_file:
@@ -25,7 +26,18 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    restart: always
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redisdata:/data
 
   # prometheus:
   #   image: prom/prometheus
@@ -37,3 +49,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:

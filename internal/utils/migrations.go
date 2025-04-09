@@ -31,6 +31,13 @@ CREATE TABLE IF NOT EXISTS product (
 	type VARCHAR(50) NOT NULL,
 	reception_id UUID REFERENCES reception(id)
 );
+
+CREATE TABLE IF NOT EXISTS users (
+	id UUID PRIMARY KEY,
+	email VARCHAR(255) UNIQUE NOT NULL,
+	password VARCHAR(255) NOT NULL,
+	role VARCHAR(50) NOT NULL,
+)
 `
 	_, err := connection.Exec(context.Background(), sql)
 	if err != nil {

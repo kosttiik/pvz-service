@@ -19,6 +19,9 @@ func Connect() error {
 	dbname := os.Getenv("DB_NAME")
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, password, host, port, dbname)
+	if dsn == "" {
+		dsn = "postgresql://postgres:postgres@localhost:5432/pvz_db?sslmode=disable"
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
