@@ -33,14 +33,20 @@ func DummyLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, ok := dummyTokens[req.Role]
-	if !ok {
+	if !models.ValidRoles[req.Role] {
 		utils.WriteError(w, "Invalid role", http.StatusBadRequest)
 		return
 	}
 
+	dummyUserID := uuid.New().String()
+	token, err := utils.GenerateJWT(dummyUserID, req.Role)
+	if err != nil {
+		utils.WriteError(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
 	resp := DummyLoginResponse{Token: token}
-	json.NewEncoder(w).Encode(&resp)
+	utils.WriteJSON(w, resp, http.StatusOK)
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
