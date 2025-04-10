@@ -7,8 +7,8 @@ import (
 
 	"github.com/kosttiik/pvz-service/internal/routes"
 	"github.com/kosttiik/pvz-service/internal/utils"
-	"github.com/kosttiik/pvz-service/pkg/cache"
 	"github.com/kosttiik/pvz-service/pkg/database"
+	"github.com/kosttiik/pvz-service/pkg/redis"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("Failed to connect to postgres: %v", err)
 	}
 
-	if err := cache.ConnectRedis(); err != nil {
+	if err := redis.Connect(); err != nil {
 		log.Fatalf("Failed to connect to redis: %v", err)
 	}
 
