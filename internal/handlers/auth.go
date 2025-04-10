@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kosttiik/pvz-service/internal/dto"
 	"github.com/kosttiik/pvz-service/internal/models"
+	"github.com/kosttiik/pvz-service/internal/repository"
 	"github.com/kosttiik/pvz-service/internal/utils"
 )
 
@@ -22,6 +23,8 @@ var dummyTokens = map[string]string{
 	"moderator": "moderator-token",
 	"employee":  "employee-token",
 }
+
+var userRepo = &repository.UserRepository{}
 
 func DummyLoginHandler(w http.ResponseWriter, r *http.Request) {
 	var req DummyLoginRequest
@@ -41,6 +44,8 @@ func DummyLoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req dto.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.WriteError(w, "Invalid request", http.StatusBadRequest)
@@ -54,7 +59,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
-		utils.WriteError(w, "Failed to process password", http.StatusInternalServerError)
+		utils.WriteError(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -66,26 +71,41 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		Role:     req.Role,
 	}
 
-	// todo сохранение в бд
+	if err := userRepo.Create(ctx, &user); err != nil {
+		utils.WriteError(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(user)
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.WriteError(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	// todo проверка пользователя в бд и проверка пароля
+	user, err := userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		utils.WriteError(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
 
-	token, err := utils.GenerateJWT(req.Email, "employee")
+	if err := utils.CheckPassword(req.Password, user.Password); err != nil {
+		utils.WriteError(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	token, err := utils.GenerateJWT(user.Email, user.Role)
 	if err != nil {
 		utils.WriteError(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
