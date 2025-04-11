@@ -7,14 +7,15 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kosttiik/pvz-service/internal/models"
 )
 
 type UserRepository struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
+func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 	return &UserRepository{db: db}
 }
 
@@ -24,7 +25,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		VALUES ($1, $2, $3, $4)
 	`
 
-	if _, err := r.db.ExecContext(ctx, query, user.ID, user.Email, user.Password, user.Role); err != nil {
+	if _, err := r.db.Exec(ctx, query, user.ID, user.Email, user.Password, user.Role); err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
@@ -39,7 +40,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
     `
 
 	user := &models.User{}
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, id).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Password,
@@ -65,7 +66,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 	`
 
 	user := &models.User{}
-	err := r.db.QueryRowContext(ctx, query, email).Scan(
+	err := r.db.QueryRow(ctx, query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Password,

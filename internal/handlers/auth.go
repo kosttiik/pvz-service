@@ -9,6 +9,7 @@ import (
 	"github.com/kosttiik/pvz-service/internal/models"
 	"github.com/kosttiik/pvz-service/internal/repository"
 	"github.com/kosttiik/pvz-service/internal/utils"
+	"github.com/kosttiik/pvz-service/pkg/database"
 )
 
 type DummyLoginRequest struct {
@@ -23,8 +24,6 @@ var dummyTokens = map[string]string{
 	"moderator": "moderator-token",
 	"employee":  "employee-token",
 }
-
-var userRepo = &repository.UserRepository{}
 
 func DummyLoginHandler(w http.ResponseWriter, r *http.Request) {
 	var req DummyLoginRequest
@@ -51,6 +50,8 @@ func DummyLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	userRepo := repository.NewUserRepository(database.DB)
 
 	var req dto.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -88,6 +89,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	userRepo := repository.NewUserRepository(database.DB)
 
 	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
