@@ -84,7 +84,6 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -109,12 +108,11 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := utils.GenerateJWT(user.Email, user.Role)
+	token, err := utils.GenerateJWT(user.ID.String(), user.Role)
 	if err != nil {
 		utils.WriteError(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"token": token})
+	utils.WriteJSON(w, map[string]string{"token": token}, http.StatusOK)
 }
