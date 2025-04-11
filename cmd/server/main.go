@@ -12,12 +12,20 @@ import (
 )
 
 func main() {
-	if err := database.Connect(); err != nil {
-		log.Fatalf("Failed to connect to postgres: %v", err)
-	}
+	errChan := make(chan error, 2)
 
-	if err := redis.Connect(); err != nil {
-		log.Fatalf("Failed to connect to redis: %v", err)
+	go func() {
+		errChan <- database.Connect()
+	}()
+
+	go func() {
+		errChan <- redis.Connect()
+	}()
+
+	for range 2 {
+		if err := <-errChan; err != nil {
+			log.Fatalf("Failed to initialize services: %v", err)
+		}
 	}
 
 	defer redis.Close()

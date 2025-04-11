@@ -11,12 +11,6 @@ import (
 	"github.com/kosttiik/pvz-service/pkg/database"
 )
 
-var allowedCities = map[string]bool{
-	"Москва":          true,
-	"Санкт-Петербург": true,
-	"Казань":          true,
-}
-
 func CreatePVZHandler(w http.ResponseWriter, r *http.Request) {
 	claims := utils.GetUserFromContext(r.Context())
 	if claims == nil {
@@ -38,7 +32,7 @@ func CreatePVZHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !allowedCities[input.City] {
+	if !models.AllowedCities[input.City] {
 		utils.WriteError(w, "City not allowed", http.StatusBadRequest)
 		return
 	}
@@ -50,13 +44,24 @@ func CreatePVZHandler(w http.ResponseWriter, r *http.Request) {
 		RegistrationDate: time.Now().UTC(),
 	}
 
-	_, err := database.DB.Exec(r.Context(),
-		"INSERT INTO pvz (id, registration_date, city) VALUES ($1, $2, $3)",
-		pvz.ID, pvz.RegistrationDate, pvz.City,
-	)
+	errChan := make(chan error, 1)
 
-	if err != nil {
-		utils.WriteError(w, "Failed to create pvz", http.StatusInternalServerError)
+	go func() {
+		_, err := database.DB.Exec(r.Context(),
+			"INSERT INTO pvz (id, registration_date, city) VALUES ($1, $2, $3)",
+			pvz.ID, pvz.RegistrationDate, pvz.City,
+		)
+		errChan <- err
+	}()
+
+	select {
+	case err := <-errChan:
+		if err != nil {
+			utils.WriteError(w, "Failed to create pvz", http.StatusInternalServerError)
+			return
+		}
+	case <-r.Context().Done():
+		utils.WriteError(w, "Request timeout", http.StatusGatewayTimeout)
 		return
 	}
 

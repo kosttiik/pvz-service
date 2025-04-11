@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Разрешенные товары согласно апи
 var ValidProduct = map[string]bool{
 	"электроника": true,
 	"одежда":      true,
@@ -15,6 +16,6 @@ var ValidProduct = map[string]bool{
 type Product struct {
 	ID          uuid.UUID `json:"id"`
 	DateTime    time.Time `json:"dateTime"`
-	Type        string    `json:"type"` // электроника, одежда, обувь
+	Type        string    `json:"type"`
 	ReceptionID string    `json:"receptionId"`
 }
