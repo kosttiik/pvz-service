@@ -7,9 +7,13 @@ import (
 	"slices"
 
 	"github.com/kosttiik/pvz-service/internal/utils"
+	"github.com/kosttiik/pvz-service/pkg/cache"
+	"github.com/kosttiik/pvz-service/pkg/redis"
 )
 
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	tokenCache := cache.NewTokenCache(redis.Client)
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -26,6 +30,13 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		claims, err := utils.ParseJWT(parts[1])
 		if err != nil {
 			utils.WriteError(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		// Проверям существует ли токен в редисе
+		cachedToken, err := tokenCache.Get(r.Context(), claims.UserID)
+		if err != nil || cachedToken != parts[1] {
+			utils.WriteError(w, "Token has been revoked or expired", http.StatusUnauthorized)
 			return
 		}
 

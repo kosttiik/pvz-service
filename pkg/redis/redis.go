@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -13,21 +14,29 @@ var (
 	Client *redis.Client
 )
 
-func Connect() error {
-	host := os.Getenv("REDIS_HOST")
-	if host == "" {
-		host = "localhost"
-	}
+type Config struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
+}
 
-	port := os.Getenv("REDIS_PORT")
-	if port == "" {
-		port = "6379"
+func DefaultConfig() *Config {
+	return &Config{
+		Host:     getEnvString("REDIS_HOST", "localhost"),
+		Port:     getEnvString("REDIS_PORT", "6379"),
+		Password: getEnvString("REDIS_PASSWORD", ""),
+		DB:       getEnvInt("REDIS_DB", 0),
 	}
+}
+
+func Connect() error {
+	config := DefaultConfig()
 
 	Client = redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", host, port),
-		Password: "",
-		DB:       0,
+		Addr:     fmt.Sprintf("%s:%s", config.Host, config.Port),
+		Password: config.Password,
+		DB:       config.DB,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -38,8 +47,30 @@ func Connect() error {
 	}
 
 	fmt.Println("Connected to the Redis")
-
 	return nil
+}
+
+func Close() error {
+	if Client != nil {
+		return Client.Close()
+	}
+	return nil
+}
+
+func getEnvString(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
+	}
+	return defaultValue
 }
 
 func Set(ctx context.Context, key string, value any, expiration time.Duration) error {

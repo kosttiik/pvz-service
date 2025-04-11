@@ -20,6 +20,8 @@ func main() {
 		log.Fatalf("Failed to connect to redis: %v", err)
 	}
 
+	defer redis.Close()
+
 	utils.Migrate()
 
 	routes.SetupRoutes()

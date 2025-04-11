@@ -9,7 +9,9 @@ import (
 	"github.com/kosttiik/pvz-service/internal/models"
 	"github.com/kosttiik/pvz-service/internal/repository"
 	"github.com/kosttiik/pvz-service/internal/utils"
+	"github.com/kosttiik/pvz-service/pkg/cache"
 	"github.com/kosttiik/pvz-service/pkg/database"
+	"github.com/kosttiik/pvz-service/pkg/redis"
 )
 
 type DummyLoginRequest struct {
@@ -41,6 +43,12 @@ func DummyLoginHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := utils.GenerateJWT(dummyUserID, req.Role)
 	if err != nil {
 		utils.WriteError(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	tokenCache := cache.NewTokenCache(redis.Client)
+	if err := tokenCache.Set(r.Context(), dummyUserID, token); err != nil {
+		utils.WriteError(w, "Failed to manage session", http.StatusInternalServerError)
 		return
 	}
 
@@ -88,8 +96,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-
 	userRepo := repository.NewUserRepository(database.DB)
+	tokenCache := cache.NewTokenCache(redis.Client)
 
 	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -108,11 +116,40 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Инвалидим все токены юзера
+	if err := tokenCache.Invalidate(ctx, user.ID.String()); err != nil {
+		utils.WriteError(w, "Failed to manage session", http.StatusInternalServerError)
+		return
+	}
+
 	token, err := utils.GenerateJWT(user.ID.String(), user.Role)
 	if err != nil {
 		utils.WriteError(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
+	// Кэшируем токен юзера
+	if err := tokenCache.Set(ctx, user.ID.String(), token); err != nil {
+		utils.WriteError(w, "Failed to manage session", http.StatusInternalServerError)
+		return
+	}
+
 	utils.WriteJSON(w, map[string]string{"token": token}, http.StatusOK)
+}
+
+func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	claims := utils.GetUserFromContext(ctx)
+	if claims == nil {
+		utils.WriteError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	tokenCache := cache.NewTokenCache(redis.Client)
+	if err := tokenCache.Invalidate(ctx, claims.UserID); err != nil {
+		utils.WriteError(w, "Failed to logout", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

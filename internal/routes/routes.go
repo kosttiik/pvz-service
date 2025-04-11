@@ -13,6 +13,7 @@ func SetupRoutes() {
 	http.HandleFunc("/dummyLogin", handlers.DummyLoginHandler)
 	http.HandleFunc("/register", handlers.RegisterHandler)
 	http.HandleFunc("/login", handlers.LoginHandler)
+	http.HandleFunc("/logout", middleware.AuthMiddleware(handlers.LogoutHandler))
 
 	http.HandleFunc("/pvz", middleware.AuthMiddleware(
 		middleware.RoleMiddleware("moderator")(handlers.CreatePVZHandler)),
