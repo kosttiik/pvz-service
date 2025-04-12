@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -109,4 +110,39 @@ func AddProductHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJSON(w, product, http.StatusCreated)
+}
+
+func CloseReceptionHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetUserFromContext(r.Context())
+	if claims == nil {
+		utils.WriteError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if string(claims.Role) != "employee" {
+		utils.WriteError(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Извлекаем pvzId из URL
+	pvzID := strings.TrimPrefix(r.URL.Path, "/pvz/")
+	pvzID = strings.TrimSuffix(pvzID, "/close_last_reception")
+
+	if _, err := uuid.Parse(pvzID); err != nil {
+		utils.WriteError(w, "Invalid PVZ ID", http.StatusBadRequest)
+		return
+	}
+
+	receptionRepo := repository.NewReceptionRepository(database.DB)
+	reception, err := receptionRepo.CloseLastReception(r.Context(), pvzID)
+	if err != nil {
+		if err.Error() == "no open reception found" {
+			utils.WriteError(w, "No open reception found", http.StatusBadRequest)
+			return
+		}
+		utils.WriteError(w, "Failed to close reception", http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, reception, http.StatusOK)
 }

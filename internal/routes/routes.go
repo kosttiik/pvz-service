@@ -22,9 +22,9 @@ func SetupRoutes() {
 	http.HandleFunc("/receptions", middleware.AuthMiddleware(
 		middleware.RoleMiddleware("employee")(handlers.CreateReceptionHandler)),
 	)
-	// http.HandleFunc("/pvz/{pvzId}/close_last_reception", middleware.AuthMiddleware(
-	// 	middleware.RoleMiddleware("employee")(handlers.CloseReceptionHandler)),
-	// )
+	http.HandleFunc("/pvz/{pvzId}/close_last_reception", middleware.AuthMiddleware(
+		middleware.RoleMiddleware("employee")(handlers.CloseReceptionHandler)),
+	)
 
 	http.HandleFunc("/products", middleware.AuthMiddleware(
 		middleware.RoleMiddleware("employee")(handlers.AddProductHandler)),
