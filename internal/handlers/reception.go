@@ -151,3 +151,39 @@ func CloseReceptionHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, reception, http.StatusOK)
 }
+
+func DeleteLastProductHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetUserFromContext(r.Context())
+	if claims == nil {
+		utils.WriteError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if string(claims.Role) != "employee" {
+		utils.WriteError(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	pvzID := strings.TrimPrefix(r.URL.Path, "/pvz/")
+	pvzID = strings.TrimSuffix(pvzID, "/delete_last_product")
+
+	if _, err := uuid.Parse(pvzID); err != nil {
+		utils.WriteError(w, "Invalid PVZ ID", http.StatusBadRequest)
+		return
+	}
+
+	receptionRepo := repository.NewReceptionRepository(database.DB)
+	reception, err := receptionRepo.GetLastOpenReception(r.Context(), pvzID)
+	if err != nil {
+		utils.WriteError(w, "No open reception found", http.StatusBadRequest)
+		return
+	}
+
+	productRepo := repository.NewProductRepository(database.DB)
+	if err := productRepo.DeleteLastFromReception(r.Context(), reception.ID.String()); err != nil {
+		utils.WriteError(w, "Failed to delete product", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

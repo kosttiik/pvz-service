@@ -29,7 +29,7 @@ func SetupRoutes() {
 	http.HandleFunc("/products", middleware.AuthMiddleware(
 		middleware.RoleMiddleware("employee")(handlers.AddProductHandler)),
 	)
-	// http.HandleFunc("/pvz/{pvzId}/delete_last_product", middleware.AuthMiddleware(
-	// 	middleware.RoleMiddleware("employee")(handlers.DeleteLastProductHandler)),
-	// )
+	http.HandleFunc("/pvz/{pvzId}/delete_last_product", middleware.AuthMiddleware(
+		middleware.RoleMiddleware("employee")(handlers.DeleteLastProductHandler)),
+	)
 }
