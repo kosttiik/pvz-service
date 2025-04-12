@@ -6,15 +6,27 @@ import (
 	"github.com/google/uuid"
 )
 
+type ReceptionStatus string
+
 // Статусы приемки
 const (
-	StatusInProgress = "in_progress"
-	StatusClosed     = "close"
+	StatusInProgress ReceptionStatus = "in_progress"
+	StatusClosed     ReceptionStatus = "close"
 )
 
+var ValidReceptionStatuses = map[ReceptionStatus]bool{
+	StatusInProgress: true,
+	StatusClosed:     true,
+}
+
 type Reception struct {
-	ID       uuid.UUID `json:"id"`
-	DateTime time.Time `json:"dateTime"`
-	PvzID    string    `json:"pvzId"`
-	Status   string    `json:"status"`
+	ID       uuid.UUID       `json:"id"`
+	DateTime time.Time       `json:"dateTime"`
+	PvzID    string          `json:"pvzId"`
+	Status   ReceptionStatus `json:"status"`
+}
+
+func (s ReceptionStatus) IsValid() bool {
+	_, ok := ValidReceptionStatuses[s]
+	return ok
 }

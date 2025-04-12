@@ -54,6 +54,11 @@ func CreateReceptionHandler(w http.ResponseWriter, r *http.Request) {
 		Status:   models.StatusInProgress,
 	}
 
+	if !reception.Status.IsValid() {
+		utils.WriteError(w, "Invalid reception status", http.StatusBadRequest)
+		return
+	}
+
 	if err := receptionRepo.Create(r.Context(), &reception); err != nil {
 		utils.WriteError(w, "Failed to create reception", http.StatusInternalServerError)
 		return

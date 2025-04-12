@@ -26,7 +26,7 @@ func (r *ReceptionRepository) HasOpenReception(ctx context.Context, pvzID string
 		)
 	`
 	var exists bool
-	err := r.db.QueryRow(ctx, query, pvzID).Scan(&exists)
+	err := r.db.QueryRow(ctx, query, pvzID, models.StatusInProgress).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("failed to check open reception: %w", err)
 	}
@@ -34,6 +34,10 @@ func (r *ReceptionRepository) HasOpenReception(ctx context.Context, pvzID string
 }
 
 func (r *ReceptionRepository) Create(ctx context.Context, reception *models.Reception) error {
+	if !reception.Status.IsValid() {
+		return fmt.Errorf("invalid recepton status: %s", reception.Status)
+	}
+
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -80,6 +84,10 @@ func (r *ReceptionRepository) GetLastOpenReception(ctx context.Context, pvzID st
 }
 
 func (r *ReceptionRepository) CloseLastReception(ctx context.Context, pvzID string) (*models.Reception, error) {
+	if models.StatusClosed.IsValid() {
+		return nil, fmt.Errorf("invalid status for closing reception")
+	}
+
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
