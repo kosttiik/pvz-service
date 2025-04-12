@@ -1,1 +1,112 @@
 package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/kosttiik/pvz-service/internal/models"
+	"github.com/kosttiik/pvz-service/internal/repository"
+	"github.com/kosttiik/pvz-service/internal/utils"
+	"github.com/kosttiik/pvz-service/pkg/database"
+)
+
+func CreateReceptionHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetUserFromContext(r.Context())
+	if claims == nil {
+		utils.WriteError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if string(claims.Role) != "employee" {
+		utils.WriteError(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	var input struct {
+		PvzID string `json:"pvzId"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		utils.WriteError(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	receptionRepo := repository.NewReceptionRepository(database.DB)
+
+	hasOpen, err := receptionRepo.HasOpenReception(r.Context(), input.PvzID)
+	if err != nil {
+		utils.WriteError(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if hasOpen {
+		utils.WriteError(w, "PVZ already has an open reception", http.StatusBadRequest)
+		return
+	}
+
+	reception := models.Reception{
+		ID:       uuid.New(),
+		DateTime: time.Now().UTC(),
+		PvzID:    input.PvzID,
+		Status:   models.StatusInProgress,
+	}
+
+	if err := receptionRepo.Create(r.Context(), &reception); err != nil {
+		utils.WriteError(w, "Failed to create reception", http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, reception, http.StatusCreated)
+}
+
+func AddProductHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetUserFromContext(r.Context())
+	if claims == nil {
+		utils.WriteError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if string(claims.Role) != "employee" {
+		utils.WriteError(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	var input struct {
+		Type  string `json:"type"`
+		PvzID string `json:"pvzId"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		utils.WriteError(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if !models.ValidProduct[input.Type] {
+		utils.WriteError(w, "Invalid product type", http.StatusBadRequest)
+		return
+	}
+
+	receptionRepo := repository.NewReceptionRepository(database.DB)
+	reception, err := receptionRepo.GetLastOpenReception(r.Context(), input.PvzID)
+	if err != nil {
+		utils.WriteError(w, "No open reception found", http.StatusBadRequest)
+		return
+	}
+
+	product := models.Product{
+		ID:          uuid.New(),
+		DateTime:    time.Now().UTC(),
+		Type:        input.Type,
+		ReceptionID: reception.ID.String(),
+	}
+
+	productRepo := repository.NewProductRepository(database.DB)
+	if err := productRepo.Create(r.Context(), &product); err != nil {
+		utils.WriteError(w, "Failed to create product", http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, product, http.StatusCreated)
+}
