@@ -34,14 +34,24 @@ func (r *ReceptionRepository) HasOpenReception(ctx context.Context, pvzID string
 }
 
 func (r *ReceptionRepository) Create(ctx context.Context, reception *models.Reception) error {
-	query := `
-		INSERT INTO reception (id, pvz_id, status)
-		VALUES ($1, $2, $3)
-	`
-	_, err := r.db.Exec(ctx, query, reception.ID, reception.PvzID, reception.Status)
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	query := `
+        INSERT INTO reception (id, pvz_id, status)
+        VALUES ($1, $2, $3)
+    `
+	if _, err := tx.Exec(ctx, query, reception.ID, reception.PvzID, reception.Status); err != nil {
 		return fmt.Errorf("failed to create reception: %w", err)
 	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
 	return nil
 }
 
