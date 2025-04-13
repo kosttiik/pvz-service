@@ -83,10 +83,6 @@ func (r *ReceptionRepository) GetLastOpenReception(ctx context.Context, pvzID st
 }
 
 func (r *ReceptionRepository) CloseLastReception(ctx context.Context, pvzID string) (*models.Reception, error) {
-	if models.StatusClosed.IsValid() {
-		return nil, fmt.Errorf("invalid status for closing reception")
-	}
-
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
@@ -106,7 +102,11 @@ func (r *ReceptionRepository) CloseLastReception(ctx context.Context, pvzID stri
     `
 
 	reception := &models.Reception{}
-	err = tx.QueryRow(ctx, query, models.StatusClosed, pvzID, models.StatusInProgress).Scan(
+	err = tx.QueryRow(ctx, query,
+		models.StatusClosed,
+		pvzID,
+		models.StatusInProgress,
+	).Scan(
 		&reception.ID,
 		&reception.DateTime,
 		&reception.PvzID,

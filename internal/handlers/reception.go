@@ -100,7 +100,7 @@ func AddProductHandler(w http.ResponseWriter, r *http.Request) {
 	receptionRepo := repository.NewReceptionRepository(database.DB)
 	reception, err := receptionRepo.GetLastOpenReception(r.Context(), input.PvzID)
 	if err != nil {
-		utils.WriteError(w, "No open reception found", http.StatusBadRequest)
+		utils.WriteError(w, fmt.Sprintf("Failed to get last open reception: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -113,7 +113,7 @@ func AddProductHandler(w http.ResponseWriter, r *http.Request) {
 
 	productRepo := repository.NewProductRepository(database.DB)
 	if err := productRepo.Create(r.Context(), &product); err != nil {
-		utils.WriteError(w, "Failed to create product", http.StatusInternalServerError)
+		utils.WriteError(w, fmt.Sprintf("Failed to create product: %v", err), http.StatusInternalServerError)
 		return
 	}
 

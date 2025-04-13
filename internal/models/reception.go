@@ -27,6 +27,5 @@ type Reception struct {
 }
 
 func (s ReceptionStatus) IsValid() bool {
-	_, ok := ValidReceptionStatuses[s]
-	return ok
+	return s == StatusInProgress || s == StatusClosed
 }
