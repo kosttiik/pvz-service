@@ -100,4 +100,53 @@ func TestReceptionRepository(t *testing.T) {
 			t.Errorf("Expected status %s, got %s", models.StatusClosed, reception.Status)
 		}
 	})
+
+	t.Run("GetLastOpenReception_NotFound", func(t *testing.T) {
+		nonExistentPVZID := uuid.New().String()
+		_, err := repo.GetLastOpenReception(ctx, nonExistentPVZID)
+		if err == nil {
+			t.Error("Expected error for non-existent PVZ")
+		}
+	})
+
+	t.Run("CloseLastReception_NoOpenReception", func(t *testing.T) {
+		nonExistentPVZID := uuid.New().String()
+		_, err := repo.CloseLastReception(ctx, nonExistentPVZID)
+		if err == nil {
+			t.Error("Expected error when no open reception exists")
+		}
+	})
+
+	t.Run("Create_DuplicateID", func(t *testing.T) {
+		reception := &models.Reception{
+			ID:       receptionID, // Используем существующий ID
+			DateTime: time.Now(),
+			PvzID:    pvzID.String(),
+			Status:   models.StatusInProgress,
+		}
+		err := repo.Create(ctx, reception)
+		if err == nil {
+			t.Error("Expected error when creating reception with duplicate ID")
+		}
+	})
+
+	t.Run("HasOpenReception_NonExistentPVZ", func(t *testing.T) {
+		hasOpen, err := repo.HasOpenReception(ctx, uuid.New().String())
+		if err != nil {
+			t.Fatalf("Failed to check open reception: %v", err)
+		}
+		if hasOpen {
+			t.Error("Should not have open reception for non-existent PVZ")
+		}
+	})
+
+	t.Run("CloseReception_StatusChange", func(t *testing.T) {
+		reception, err := repo.CloseLastReception(ctx, pvzID.String())
+		if err != nil {
+			t.Fatalf("Failed to close reception: %v", err)
+		}
+		if reception.Status != models.StatusClosed {
+			t.Errorf("Got status = %v, want %v", reception.Status, models.StatusClosed)
+		}
+	})
 }

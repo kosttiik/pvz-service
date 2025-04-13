@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/kosttiik/pvz-service/internal/models"
 	"github.com/kosttiik/pvz-service/internal/utils"
 	"github.com/kosttiik/pvz-service/pkg/cache"
 	"github.com/kosttiik/pvz-service/pkg/redis"
@@ -75,5 +76,55 @@ func TestAuthMiddleware(t *testing.T) {
 				t.Logf("Failed to cleanup token: %v", err)
 			}
 		}
+	}
+}
+
+func TestRoleMiddleware(t *testing.T) {
+	tests := []struct {
+		name       string
+		role       string
+		userRole   models.Role
+		wantStatus int
+	}{
+		{
+			name:       "Correct role",
+			role:       "employee",
+			userRole:   models.Role("employee"),
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "Wrong role",
+			role:       "moderator",
+			userRole:   models.Role("employee"),
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "No role in context",
+			role:       "employee",
+			userRole:   "",
+			wantStatus: http.StatusUnauthorized,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/", nil)
+			if tt.userRole != "" {
+				ctx := req.Context()
+				claims := &models.Claims{Role: tt.userRole}
+				req = req.WithContext(utils.SetUserContext(ctx, claims))
+			}
+
+			rr := httptest.NewRecorder()
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+
+			RoleMiddleware(tt.role)(handler).ServeHTTP(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("RoleMiddleware() status = %v, want %v", rr.Code, tt.wantStatus)
+			}
+		})
 	}
 }

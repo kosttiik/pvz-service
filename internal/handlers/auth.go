@@ -67,6 +67,25 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Email == "" || req.Password == "" {
+		utils.WriteError(w, "Email and password are required", http.StatusBadRequest)
+		return
+	}
+
+	// Проверяем есть ли уже такой пользователь с эмейлом
+	var count int
+	err := database.DB.QueryRow(ctx,
+		"SELECT COUNT(*) FROM users WHERE email = $1",
+		req.Email).Scan(&count)
+	if err != nil {
+		utils.WriteError(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	if count > 0 {
+		utils.WriteError(w, "Email already registered", http.StatusBadRequest)
+		return
+	}
+
 	if !models.ValidRoles[req.Role] {
 		utils.WriteError(w, "Invalid role", http.StatusBadRequest)
 		return

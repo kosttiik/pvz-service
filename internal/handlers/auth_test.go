@@ -82,9 +82,18 @@ func TestDummyLoginHandler(t *testing.T) {
 }
 
 func TestRegisterHandler(t *testing.T) {
+	// Setup test user for duplicate email test
+	duplicateUser := &models.User{
+		ID:       uuid.New(),
+		Email:    "test@example.com",
+		Password: "somepassword",
+		Role:     "employee",
+	}
+
 	tests := []struct {
 		name       string
 		input      dto.RegisterRequest
+		setupUser  bool
 		wantStatus int
 	}{
 		{
@@ -105,11 +114,50 @@ func TestRegisterHandler(t *testing.T) {
 			},
 			wantStatus: http.StatusBadRequest,
 		},
+		{
+			name: "Empty email",
+			input: dto.RegisterRequest{
+				Email:    "",
+				Password: "password123",
+				Role:     "employee",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "Empty password",
+			input: dto.RegisterRequest{
+				Email:    "test@example.com",
+				Password: "",
+				Role:     "employee",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "Duplicate email",
+			input: dto.RegisterRequest{
+				Email:    "test@example.com",
+				Password: "password123",
+				Role:     "employee",
+			},
+			setupUser:  true,
+			wantStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			database.DB.Exec(context.Background(), "TRUNCATE users CASCADE")
+			if _, err := database.DB.Exec(context.Background(), "TRUNCATE users CASCADE"); err != nil {
+				t.Fatalf("Failed to cleanup users table: %v", err)
+			}
+
+			if tt.setupUser {
+				_, err := database.DB.Exec(context.Background(),
+					"INSERT INTO users (id, email, password, role) VALUES ($1, $2, $3, $4)",
+					duplicateUser.ID, duplicateUser.Email, duplicateUser.Password, duplicateUser.Role)
+				if err != nil {
+					t.Fatalf("Failed to setup test user: %v", err)
+				}
+			}
 
 			jsonBody, _ := json.Marshal(tt.input)
 			req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(jsonBody))
@@ -135,8 +183,13 @@ func TestLoginHandler(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	database.DB.Exec(ctx, `INSERT INTO users (id, email, password, role) 
+	database.DB.Exec(ctx, "TRUNCATE users CASCADE")
+
+	_, err := database.DB.Exec(ctx, `INSERT INTO users (id, email, password, role) 
 		VALUES ($1, $2, $3, $4)`, testUser.ID, testUser.Email, testUser.Password, testUser.Role)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
 
 	tests := []struct {
 		name       string

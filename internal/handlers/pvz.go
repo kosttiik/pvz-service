@@ -118,6 +118,13 @@ func GetPVZListHandler(w http.ResponseWriter, r *http.Request) {
 		filter.EndDate = &parsedTime
 	}
 
+	if filter.StartDate != nil && filter.EndDate != nil {
+		if filter.EndDate.Before(*filter.StartDate) {
+			utils.WriteError(w, "End date cannot be before start date", http.StatusBadRequest)
+			return
+		}
+	}
+
 	filter.Page = 1
 	if page := query.Get("page"); page != "" {
 		pageNum, err := strconv.Atoi(page)

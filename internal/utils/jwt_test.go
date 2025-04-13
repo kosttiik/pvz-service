@@ -79,6 +79,31 @@ func TestGenerateAndParseJWT(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Expiration time", func(t *testing.T) {
+		userID := "test"
+		role := "employee"
+
+		token, err := GenerateJWT(userID, role)
+		if err != nil {
+			t.Fatalf("GenerateJWT() failed: %v", err)
+		}
+
+		claims, err := ParseJWT(token)
+		if err != nil {
+			t.Fatalf("ParseJWT() failed: %v", err)
+		}
+
+		now := time.Now().Unix()
+		if claims.ExpiresAt <= now {
+			t.Error("Token should not be expired immediately")
+		}
+
+		expectedExp := now + 24*60*60 // 24 hours
+		if claims.ExpiresAt < expectedExp-60 || claims.ExpiresAt > expectedExp+60 {
+			t.Errorf("Expiration time outside expected range")
+		}
+	})
 }
 
 func TestParseJWT_Invalid(t *testing.T) {
@@ -107,6 +132,21 @@ func TestParseJWT_Invalid(t *testing.T) {
 			token:   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
 			wantErr: true,
 		},
+		{
+			name:    "Expired token",
+			token:   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidGVzdCIsInJvbGUiOiJlbXBsb3llZSIsImV4cCI6MTUxNjIzOTAyMn0.2kNhoGdTn3nPVR4n0dFjC6",
+			wantErr: true,
+		},
+		{
+			name:    "Malformed JWT",
+			token:   "header.payload",
+			wantErr: true,
+		},
+		{
+			name:    "Invalid header",
+			token:   "invalid.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -116,5 +156,24 @@ func TestParseJWT_Invalid(t *testing.T) {
 				t.Errorf("ParseJWT() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestGenerateJWT_WithCustomExpiration(t *testing.T) {
+	userID := "test-user"
+	role := "employee"
+	token, err := GenerateJWT(userID, role)
+	if err != nil {
+		t.Fatalf("GenerateJWT() error = %v", err)
+	}
+
+	claims, err := ParseJWT(token)
+	if err != nil {
+		t.Fatalf("ParseJWT() error = %v", err)
+	}
+
+	// Проверяем что токен действителен как минимум на 23 часа
+	if claims.ExpiresAt-time.Now().Unix() < 23*60*60 {
+		t.Error("Token expiration is less than 23 hours")
 	}
 }

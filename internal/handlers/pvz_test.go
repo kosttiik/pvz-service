@@ -35,6 +35,12 @@ func TestCreatePVZHandler(t *testing.T) {
 			role:       "moderator",
 			wantStatus: http.StatusBadRequest,
 		},
+		{
+			name:       "No auth token",
+			city:       "Москва",
+			role:       "",
+			wantStatus: http.StatusUnauthorized,
+		},
 	}
 
 	for _, tt := range tests {
@@ -42,7 +48,9 @@ func TestCreatePVZHandler(t *testing.T) {
 			body := map[string]string{"city": tt.city}
 			jsonBody, _ := json.Marshal(body)
 			req := httptest.NewRequest(http.MethodPost, "/pvz", bytes.NewBuffer(jsonBody))
-			req = getTestToken(t, tt.role, req)
+			if tt.role != "" {
+				req = getTestToken(t, tt.role, req)
+			}
 			w := httptest.NewRecorder()
 
 			CreatePVZHandler(w, req)
@@ -69,6 +77,7 @@ func TestGetPVZListHandler(t *testing.T) {
 		name       string
 		role       string
 		query      string
+		setupData  bool
 		wantStatus int
 	}{
 		{
@@ -95,18 +104,73 @@ func TestGetPVZListHandler(t *testing.T) {
 			query:      "?page=1&limit=50",
 			wantStatus: http.StatusBadRequest,
 		},
+		{
+			name:       "Invalid date format",
+			role:       "employee",
+			query:      "?startDate=invalid-date",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "End date before start date",
+			role:       "employee",
+			query:      "?startDate=2025-01-02T00:00:00Z&endDate=2024-01-01T00:00:00Z",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "With data",
+			role:       "employee",
+			query:      "?page=1&limit=10",
+			setupData:  true,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "No auth",
+			role:       "",
+			query:      "?page=1&limit=10",
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "Invalid role",
+			role:       "invalid",
+			query:      "?page=1&limit=10",
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "Zero limit",
+			role:       "employee",
+			query:      "?page=1&limit=0",
+			wantStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.setupData {
+				createTestPVZ(t)
+			}
 			req := httptest.NewRequest(http.MethodGet, "/pvz"+tt.query, nil)
-			req = getTestToken(t, tt.role, req)
+			if tt.role != "" {
+				req = getTestToken(t, tt.role, req)
+			}
 
 			w := httptest.NewRecorder()
 			GetPVZListHandler(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("GetPVZListHandler() status = %v, want %v", w.Code, tt.wantStatus)
+			}
+
+			if w.Code == http.StatusOK {
+				var response []struct {
+					PVZ        models.PVZ `json:"pvz"`
+					Receptions []struct {
+						Reception models.Reception `json:"reception"`
+						Products  []models.Product `json:"products"`
+					} `json:"receptions"`
+				}
+				if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+					t.Errorf("Failed to decode response: %v", err)
+				}
 			}
 		})
 	}
