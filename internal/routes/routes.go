@@ -15,9 +15,16 @@ func SetupRoutes() {
 	http.HandleFunc("/login", handlers.LoginHandler)
 	http.HandleFunc("/logout", middleware.AuthMiddleware(handlers.LogoutHandler))
 
-	http.HandleFunc("/pvz", middleware.AuthMiddleware(
-		middleware.RoleMiddleware("moderator")(handlers.CreatePVZHandler)),
-	)
+	http.HandleFunc("/pvz", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			middleware.AuthMiddleware(handlers.GetPVZListHandler)(w, r)
+		case http.MethodPost:
+			middleware.AuthMiddleware(
+				middleware.RoleMiddleware("moderator")(handlers.CreatePVZHandler),
+			)(w, r)
+		}
+	})
 
 	http.HandleFunc("/receptions", middleware.AuthMiddleware(
 		middleware.RoleMiddleware("employee")(handlers.CreateReceptionHandler)),

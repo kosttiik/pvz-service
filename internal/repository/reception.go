@@ -22,9 +22,8 @@ func (r *ReceptionRepository) HasOpenReception(ctx context.Context, pvzID string
 	query := `
 		SELECT EXISTS(
 			SELECT 1 FROM reception 
-			WHERE pvz_id = $1 AND status = 'in_progress'
-		)
-	`
+			WHERE pvz_id = $1 AND status = $2
+		)`
 	var exists bool
 	err := r.db.QueryRow(ctx, query, pvzID, models.StatusInProgress).Scan(&exists)
 	if err != nil {
@@ -35,7 +34,7 @@ func (r *ReceptionRepository) HasOpenReception(ctx context.Context, pvzID string
 
 func (r *ReceptionRepository) Create(ctx context.Context, reception *models.Reception) error {
 	if !reception.Status.IsValid() {
-		return fmt.Errorf("invalid recepton status: %s", reception.Status)
+		return fmt.Errorf("invalid reception status: %s", reception.Status)
 	}
 
 	tx, err := r.db.Begin(ctx)
@@ -45,10 +44,10 @@ func (r *ReceptionRepository) Create(ctx context.Context, reception *models.Rece
 	defer tx.Rollback(ctx)
 
 	query := `
-        INSERT INTO reception (id, pvz_id, status)
-        VALUES ($1, $2, $3)
+        INSERT INTO reception (id, date_time, pvz_id, status)
+        VALUES ($1, $2, $3, $4)
     `
-	if _, err := tx.Exec(ctx, query, reception.ID, reception.PvzID, reception.Status); err != nil {
+	if _, err := tx.Exec(ctx, query, reception.ID, reception.DateTime, reception.PvzID, reception.Status); err != nil {
 		return fmt.Errorf("failed to create reception: %w", err)
 	}
 

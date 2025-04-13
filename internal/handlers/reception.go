@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -30,7 +31,12 @@ func CreateReceptionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		utils.WriteError(w, "Invalid request", http.StatusBadRequest)
+		utils.WriteError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := uuid.Parse(input.PvzID); err != nil {
+		utils.WriteError(w, "Invalid PVZ ID format", http.StatusBadRequest)
 		return
 	}
 
@@ -38,7 +44,8 @@ func CreateReceptionHandler(w http.ResponseWriter, r *http.Request) {
 
 	hasOpen, err := receptionRepo.HasOpenReception(r.Context(), input.PvzID)
 	if err != nil {
-		utils.WriteError(w, "Internal error", http.StatusInternalServerError)
+		fmt.Printf("Error checking open reception: %v\n", err)
+		utils.WriteError(w, "Failed to check open reception", http.StatusInternalServerError)
 		return
 	}
 
@@ -54,12 +61,8 @@ func CreateReceptionHandler(w http.ResponseWriter, r *http.Request) {
 		Status:   models.StatusInProgress,
 	}
 
-	if !reception.Status.IsValid() {
-		utils.WriteError(w, "Invalid reception status", http.StatusBadRequest)
-		return
-	}
-
 	if err := receptionRepo.Create(r.Context(), &reception); err != nil {
+		fmt.Printf("Error creating reception: %v\n", err)
 		utils.WriteError(w, "Failed to create reception", http.StatusInternalServerError)
 		return
 	}
