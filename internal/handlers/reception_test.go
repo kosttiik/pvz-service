@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,16 +11,40 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kosttiik/pvz-service/internal/models"
+	"github.com/kosttiik/pvz-service/pkg/database"
 )
 
+func createTestReception(t *testing.T, pvzID string, expectError bool) string {
+	body := map[string]string{"pvzId": pvzID}
+	jsonBody, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/receptions", bytes.NewBuffer(jsonBody))
+	req = getTestToken(t, "employee", req)
+	w := httptest.NewRecorder()
+
+	CreateReceptionHandler(w, req)
+
+	if !expectError && w.Code != http.StatusCreated {
+		t.Fatalf("Failed to create test reception: status = %v", w.Code)
+	}
+
+	if w.Code == http.StatusCreated {
+		var reception models.Reception
+		if err := json.NewDecoder(w.Body).Decode(&reception); err != nil {
+			t.Fatalf("Failed to decode reception response: %v", err)
+		}
+		return reception.ID.String()
+	}
+	return ""
+}
+
 func TestCreateReceptionHandler(t *testing.T) {
-	// Создаем тестовое пвз
 	pvzID := createTestPVZ(t)
 
 	tests := []struct {
 		name       string
 		pvzID      string
 		role       string
+		hasOpen    bool
 		wantStatus int
 	}{
 		{
@@ -40,16 +65,38 @@ func TestCreateReceptionHandler(t *testing.T) {
 			role:       "employee",
 			wantStatus: http.StatusBadRequest,
 		},
+		{
+			name:       "Already has open reception",
+			pvzID:      pvzID,
+			role:       "employee",
+			hasOpen:    true,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "No auth token",
+			pvzID:      pvzID,
+			role:       "",
+			wantStatus: http.StatusUnauthorized,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Очищаем таблицу приемок перед каждым тестом
+			database.DB.Exec(context.Background(), "TRUNCATE reception CASCADE")
+
+			if tt.hasOpen {
+				// Создаем приемку
+				createTestReception(t, tt.pvzID, false)
+			}
+
 			body := map[string]string{"pvzId": tt.pvzID}
 			jsonBody, _ := json.Marshal(body)
 			req := httptest.NewRequest(http.MethodPost, "/receptions", bytes.NewBuffer(jsonBody))
 
-			// Получаем тестовый токен
-			req = getTestToken(t, tt.role, req)
+			if tt.role != "" {
+				req = getTestToken(t, tt.role, req)
+			}
 
 			w := httptest.NewRecorder()
 			CreateReceptionHandler(w, req)
@@ -71,54 +118,58 @@ func TestCreateReceptionHandler(t *testing.T) {
 	}
 }
 
-func createTestReception(t *testing.T, pvzID string) string {
-	// Создаем приемку с ролью работника пвз
-	body := map[string]string{"pvzId": pvzID}
-	jsonBody, _ := json.Marshal(body)
-	req := httptest.NewRequest(http.MethodPost, "/receptions", bytes.NewBuffer(jsonBody))
-	req = getTestToken(t, "employee", req)
-	w := httptest.NewRecorder()
-
-	CreateReceptionHandler(w, req)
-
-	if w.Code != http.StatusCreated {
-		t.Fatalf("Failed to create test reception: status = %v", w.Code)
-	}
-
-	var reception models.Reception
-	if err := json.NewDecoder(w.Body).Decode(&reception); err != nil {
-		t.Fatalf("Failed to decode reception response: %v", err)
-	}
-	return reception.ID.String()
-}
-
 func TestAddProductHandler(t *testing.T) {
 	pvzID := createTestPVZ(t)
-	_ = createTestReception(t, pvzID) // Сначала создаем приемку
+	_ = createTestReception(t, pvzID, false) // Сначала создаем приемку
 
 	tests := []struct {
 		name        string
 		productType string
+		pvzID       string
 		role        string
 		wantStatus  int
 	}{
 		{
 			name:        "Valid product",
 			productType: "электроника",
+			pvzID:       pvzID,
 			role:        "employee",
 			wantStatus:  http.StatusCreated,
 		},
 		{
 			name:        "Invalid product type",
 			productType: "invalid",
+			pvzID:       pvzID,
 			role:        "employee",
 			wantStatus:  http.StatusBadRequest,
 		},
 		{
 			name:        "Invalid role",
 			productType: "электроника",
+			pvzID:       pvzID,
 			role:        "moderator",
 			wantStatus:  http.StatusForbidden,
+		},
+		{
+			name:        "No auth token",
+			productType: "электроника",
+			pvzID:       pvzID,
+			role:        "",
+			wantStatus:  http.StatusUnauthorized,
+		},
+		{
+			name:        "Invalid PVZ ID",
+			productType: "электроника",
+			pvzID:       "invalid-uuid",
+			role:        "employee",
+			wantStatus:  http.StatusBadRequest,
+		},
+		{
+			name:        "Not existed PVZ",
+			productType: "электроника",
+			pvzID:       uuid.New().String(),
+			role:        "employee",
+			wantStatus:  http.StatusBadRequest,
 		},
 	}
 
@@ -126,11 +177,13 @@ func TestAddProductHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			body := map[string]string{
 				"type":  tt.productType,
-				"pvzId": pvzID,
+				"pvzId": tt.pvzID,
 			}
 			jsonBody, _ := json.Marshal(body)
 			req := httptest.NewRequest(http.MethodPost, "/products", bytes.NewBuffer(jsonBody))
-			req = getTestToken(t, tt.role, req)
+			if tt.role != "" {
+				req = getTestToken(t, tt.role, req)
+			}
 			w := httptest.NewRecorder()
 
 			AddProductHandler(w, req)
@@ -144,7 +197,7 @@ func TestAddProductHandler(t *testing.T) {
 
 func TestDeleteLastProductHandler(t *testing.T) {
 	pvzID := createTestPVZ(t)
-	_ = createTestReception(t, pvzID) // Сначала создаем приемку
+	_ = createTestReception(t, pvzID, false) // Сначала создаем приемку
 
 	// Создаем тестовый продукт
 	body := map[string]string{
@@ -195,7 +248,7 @@ func TestDeleteLastProductHandler(t *testing.T) {
 
 func TestCloseReceptionHandler(t *testing.T) {
 	pvzID := createTestPVZ(t)
-	_ = createTestReception(t, pvzID)
+	_ = createTestReception(t, pvzID, false)
 
 	tests := []struct {
 		name       string
