@@ -10,6 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kosttiik/pvz-service/internal/models"
+	"github.com/kosttiik/pvz-service/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type PVZRepository struct {
@@ -38,6 +40,11 @@ func NewPVZRepository(db *pgxpool.Pool) *PVZRepository {
 }
 
 func (r *PVZRepository) GetPVZ(ctx context.Context, filter GetPVZFilter) ([]PVZandReceptions, error) {
+	log := logger.Log
+
+	log.Debug("Getting PVZ list with filter",
+		zap.Any("filter", filter))
+
 	var conditions []string
 	var args []any
 	argPos := 1
@@ -85,6 +92,10 @@ func (r *PVZRepository) GetPVZ(ctx context.Context, filter GetPVZFilter) ([]PVZa
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
+		log.Error("Failed to execute PVZ query",
+			zap.Error(err),
+			zap.String("query", query),
+			zap.Any("args", args))
 		return nil, fmt.Errorf("failed to query PVZs: %w", err)
 	}
 	defer rows.Close()
@@ -167,6 +178,8 @@ func (r *PVZRepository) GetPVZ(ctx context.Context, filter GetPVZFilter) ([]PVZa
 		result = append(result, *pvz)
 	}
 
+	log.Debug("Successfully got PVZ list",
+		zap.Int("count", len(result)))
 	return result, nil
 }
 

@@ -7,8 +7,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	handlertest "github.com/kosttiik/pvz-service/internal/handlers/internal/test"
 	"github.com/kosttiik/pvz-service/internal/models"
 )
+
+func init() {
+	handlertest.Init()
+}
 
 func TestCreatePVZHandler(t *testing.T) {
 	tests := []struct {

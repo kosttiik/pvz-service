@@ -10,17 +10,26 @@ import (
 	"github.com/kosttiik/pvz-service/internal/models"
 	"github.com/kosttiik/pvz-service/internal/utils"
 	"github.com/kosttiik/pvz-service/pkg/cache"
+	"github.com/kosttiik/pvz-service/pkg/logger"
 	"github.com/kosttiik/pvz-service/pkg/redis"
 )
 
 func TestMain(m *testing.M) {
 	os.Setenv("JWT_SECRET", "test_secret")
 	os.Setenv("REDIS_HOST", "localhost")
+
+	if err := logger.Init(); err != nil {
+		panic(err)
+	}
+
 	if err := redis.Connect(); err != nil {
 		panic(err)
 	}
+
 	code := m.Run()
+
 	redis.Close()
+	logger.Close()
 	os.Exit(code)
 }
 

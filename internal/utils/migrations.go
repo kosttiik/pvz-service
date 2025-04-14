@@ -2,21 +2,24 @@ package utils
 
 import (
 	"context"
-	"fmt"
-	"log"
 
 	"github.com/kosttiik/pvz-service/pkg/database"
+	"github.com/kosttiik/pvz-service/pkg/logger"
+	"go.uber.org/zap"
 )
 
 func Migrate() {
+	log := logger.Log
 	connection := database.DB
 	ctx := context.Background()
 
 	tx, err := connection.Begin(ctx)
 	if err != nil {
-		log.Fatalf("Failed to start transaction: %v", err)
+		log.Fatal("Failed to start migration transaction", zap.Error(err))
 	}
 	defer tx.Rollback(ctx)
+
+	log.Info("Starting database migration")
 
 	sql := `
 CREATE TABLE IF NOT EXISTS pvz (
@@ -51,12 +54,12 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 `
 	if _, err := tx.Exec(ctx, sql); err != nil {
-		log.Fatalf("Failed to execute migrations: %v", err)
+		log.Fatal("Failed to execute migrations", zap.Error(err))
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		log.Fatalf("Failed to commit migrations: %v", err)
+		log.Fatal("Failed to commit migrations", zap.Error(err))
 	}
 
-	fmt.Println("Successfully migrated DB!")
+	log.Info("Database migration completed successfully")
 }

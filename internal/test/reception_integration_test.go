@@ -15,6 +15,7 @@ import (
 	"github.com/kosttiik/pvz-service/internal/models"
 	"github.com/kosttiik/pvz-service/internal/utils"
 	"github.com/kosttiik/pvz-service/pkg/database"
+	"github.com/kosttiik/pvz-service/pkg/logger"
 	"github.com/kosttiik/pvz-service/pkg/redis"
 )
 
@@ -26,6 +27,10 @@ func init() {
 	os.Setenv("DB_NAME", "pvz_db")
 	os.Setenv("REDIS_HOST", "localhost")
 	os.Setenv("JWT_SECRET", "test_secret")
+
+	if err := logger.Init(); err != nil {
+		panic(err)
+	}
 }
 
 func TestReceptionWorkflow(t *testing.T) {
@@ -36,6 +41,7 @@ func TestReceptionWorkflow(t *testing.T) {
 		t.Fatalf("Failed to connect to redis: %v", err)
 	}
 	defer redis.Close()
+	defer logger.Close()
 
 	utils.Migrate()
 

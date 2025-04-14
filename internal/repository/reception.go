@@ -8,6 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kosttiik/pvz-service/internal/models"
+	"github.com/kosttiik/pvz-service/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type ReceptionRepository struct {
@@ -33,6 +35,11 @@ func (r *ReceptionRepository) HasOpenReception(ctx context.Context, pvzID string
 }
 
 func (r *ReceptionRepository) Create(ctx context.Context, reception *models.Reception) error {
+	log := logger.Log
+	log.Debug("Creating reception",
+		zap.String("id", reception.ID.String()),
+		zap.String("pvzID", reception.PvzID))
+
 	if !reception.Status.IsValid() {
 		return fmt.Errorf("invalid reception status: %s", reception.Status)
 	}
@@ -55,6 +62,10 @@ func (r *ReceptionRepository) Create(ctx context.Context, reception *models.Rece
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	log.Info("Reception created successfully",
+		zap.String("id", reception.ID.String()),
+		zap.String("pvzID", reception.PvzID),
+		zap.String("status", string(reception.Status)))
 	return nil
 }
 
@@ -83,6 +94,10 @@ func (r *ReceptionRepository) GetLastOpenReception(ctx context.Context, pvzID st
 }
 
 func (r *ReceptionRepository) CloseLastReception(ctx context.Context, pvzID string) (*models.Reception, error) {
+	log := logger.Log
+	log.Debug("Closing last reception",
+		zap.String("pvzID", pvzID))
+
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
@@ -123,5 +138,8 @@ func (r *ReceptionRepository) CloseLastReception(ctx context.Context, pvzID stri
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	log.Info("Reception closed successfully",
+		zap.String("id", reception.ID.String()),
+		zap.String("pvzID", reception.PvzID))
 	return reception, nil
 }

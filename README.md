@@ -7,10 +7,22 @@
 1. Ручка /logout для завершения сессии
 2. Кэширование JWT токенов в Redis, их инвалидация
 
-## Запуск тестов
+### Запуск проекта
+
+```bash
+docker compose up --build
+```
+
+### Запуск тестов
 
 ```bash
 go test ./... -p 1 -cover
+```
+
+### Завершение проекта
+
+```bash
+docker compose down -v --rmi all
 ```
 
 ## TODO

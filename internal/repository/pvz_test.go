@@ -7,10 +7,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kosttiik/pvz-service/internal/models"
+	"github.com/kosttiik/pvz-service/internal/testutils"
 )
 
 func TestPVZRepository(t *testing.T) {
-	pool := setupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	defer pool.Close()
 
 	repo := NewPVZRepository(pool)

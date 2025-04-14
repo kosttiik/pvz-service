@@ -10,9 +10,14 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	handlertest "github.com/kosttiik/pvz-service/internal/handlers/internal/test"
 	"github.com/kosttiik/pvz-service/internal/models"
 	"github.com/kosttiik/pvz-service/pkg/database"
 )
+
+func init() {
+	handlertest.Init()
+}
 
 func createTestReception(t *testing.T, pvzID string, expectError bool) string {
 	body := map[string]string{"pvzId": pvzID}

@@ -6,26 +6,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kosttiik/pvz-service/internal/models"
+	"github.com/kosttiik/pvz-service/internal/testutils"
 )
 
-func setupTestDB(t *testing.T) *pgxpool.Pool {
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, "postgresql://postgres:postgres@localhost:5432/pvz_db?sslmode=disable")
-	if err != nil {
-		t.Fatalf("Failed to create pool: %v", err)
-	}
-
-	if err := pool.Ping(ctx); err != nil {
-		t.Fatalf("Failed to ping db: %v", err)
-	}
-
-	return pool
-}
-
 func TestReceptionRepository(t *testing.T) {
-	pool := setupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	defer pool.Close()
 
 	repo := NewReceptionRepository(pool)

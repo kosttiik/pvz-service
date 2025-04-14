@@ -12,16 +12,23 @@ import (
 	"github.com/kosttiik/pvz-service/internal/repository"
 	"github.com/kosttiik/pvz-service/internal/utils"
 	"github.com/kosttiik/pvz-service/pkg/database"
+	"github.com/kosttiik/pvz-service/pkg/logger"
+	"go.uber.org/zap"
 )
 
 func CreateReceptionHandler(w http.ResponseWriter, r *http.Request) {
+	log := logger.Log
 	claims := utils.GetUserFromContext(r.Context())
 	if claims == nil {
+		log.Warn("Unauthorized attempt to create reception")
 		utils.WriteError(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	if string(claims.Role) != "employee" {
+		log.Warn("Not employee attempted to create reception",
+			zap.String("userID", claims.UserID),
+			zap.String("role", string(claims.Role)))
 		utils.WriteError(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -31,7 +38,8 @@ func CreateReceptionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		utils.WriteError(w, "Invalid request body", http.StatusBadRequest)
+		log.Warn("Failed to decode reception creation request", zap.Error(err))
+		utils.WriteError(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
@@ -67,12 +75,19 @@ func CreateReceptionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info("Reception created successfully",
+		zap.String("id", reception.ID.String()),
+		zap.String("pvzId", reception.PvzID),
+		zap.String("createdBy", claims.UserID))
+
 	utils.WriteJSON(w, reception, http.StatusCreated)
 }
 
 func AddProductHandler(w http.ResponseWriter, r *http.Request) {
+	log := logger.Log
 	claims := utils.GetUserFromContext(r.Context())
 	if claims == nil {
+		log.Warn("Unauthorized attempt to add product")
 		utils.WriteError(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -117,12 +132,20 @@ func AddProductHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info("Product added successfully",
+		zap.String("id", product.ID.String()),
+		zap.String("type", product.Type),
+		zap.String("receptionId", product.ReceptionID),
+		zap.String("addedBy", claims.UserID))
+
 	utils.WriteJSON(w, product, http.StatusCreated)
 }
 
 func CloseReceptionHandler(w http.ResponseWriter, r *http.Request) {
+	log := logger.Log
 	claims := utils.GetUserFromContext(r.Context())
 	if claims == nil {
+		log.Warn("Unauthorized attempt to close reception")
 		utils.WriteError(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -151,6 +174,11 @@ func CloseReceptionHandler(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "Failed to close reception", http.StatusInternalServerError)
 		return
 	}
+
+	log.Info("Reception closed successfully",
+		zap.String("id", reception.ID.String()),
+		zap.String("pvzId", reception.PvzID),
+		zap.String("closedBy", claims.UserID))
 
 	utils.WriteJSON(w, reception, http.StatusOK)
 }

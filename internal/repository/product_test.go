@@ -2,15 +2,29 @@ package repository
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/kosttiik/pvz-service/internal/models"
+	"github.com/kosttiik/pvz-service/internal/testutils"
+	"github.com/kosttiik/pvz-service/pkg/logger"
 )
 
+func TestMain(m *testing.M) {
+	if err := logger.Init(); err != nil {
+		panic(err)
+	}
+
+	code := m.Run()
+
+	logger.Close()
+	os.Exit(code)
+}
+
 func TestProductRepository(t *testing.T) {
-	pool := setupTestDB(t)
+	pool := testutils.SetupTestDB(t)
 	defer pool.Close()
 
 	repo := NewProductRepository(pool)

@@ -6,40 +6,18 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/kosttiik/pvz-service/internal/dto"
+	handlertest "github.com/kosttiik/pvz-service/internal/handlers/internal/test"
 	"github.com/kosttiik/pvz-service/internal/models"
 	"github.com/kosttiik/pvz-service/internal/utils"
 	"github.com/kosttiik/pvz-service/pkg/database"
-	"github.com/kosttiik/pvz-service/pkg/redis"
 )
 
-func TestMain(m *testing.M) {
-	os.Setenv("JWT_SECRET", "test_secret")
-	os.Setenv("DB_HOST", "localhost")
-	os.Setenv("DB_PORT", "5432")
-	os.Setenv("DB_USER", "postgres")
-	os.Setenv("DB_PASSWORD", "postgres")
-	os.Setenv("DB_NAME", "pvz_db")
-	os.Setenv("REDIS_HOST", "localhost")
-
-	if err := database.Connect(); err != nil {
-		panic(err)
-	}
-	if err := redis.Connect(); err != nil {
-		panic(err)
-	}
-
-	// Очищаем таблицу пользователей перед каждым тестом
-	database.DB.Exec(context.Background(), "TRUNCATE users CASCADE")
-
-	code := m.Run()
-
-	redis.Close()
-	os.Exit(code)
+func init() {
+	handlertest.Init()
 }
 
 func TestDummyLoginHandler(t *testing.T) {
@@ -82,7 +60,6 @@ func TestDummyLoginHandler(t *testing.T) {
 }
 
 func TestRegisterHandler(t *testing.T) {
-	// Setup test user for duplicate email test
 	duplicateUser := &models.User{
 		ID:       uuid.New(),
 		Email:    "test@example.com",
