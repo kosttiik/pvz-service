@@ -5,6 +5,7 @@ import (
 
 	"github.com/kosttiik/pvz-service/internal/handlers"
 	"github.com/kosttiik/pvz-service/internal/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func SetupRoutes() {
@@ -39,4 +40,6 @@ func SetupRoutes() {
 	http.HandleFunc("/pvz/{pvzId}/delete_last_product", middleware.AuthMiddleware(
 		middleware.RoleMiddleware("employee")(handlers.DeleteLastProductHandler)),
 	)
+
+	http.Handle("/metrics", promhttp.Handler())
 }

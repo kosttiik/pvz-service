@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kosttiik/pvz-service/internal/metrics"
 	"github.com/kosttiik/pvz-service/internal/models"
 	"github.com/kosttiik/pvz-service/internal/repository"
 	"github.com/kosttiik/pvz-service/internal/utils"
@@ -81,6 +82,7 @@ func CreateReceptionHandler(w http.ResponseWriter, r *http.Request) {
 		zap.String("createdBy", claims.UserID))
 
 	utils.WriteJSON(w, reception, http.StatusCreated)
+	metrics.OrderReceiptsCreatedTotal.Inc()
 }
 
 func AddProductHandler(w http.ResponseWriter, r *http.Request) {
@@ -139,6 +141,7 @@ func AddProductHandler(w http.ResponseWriter, r *http.Request) {
 		zap.String("addedBy", claims.UserID))
 
 	utils.WriteJSON(w, product, http.StatusCreated)
+	metrics.ProductsAddedTotal.Inc()
 }
 
 func CloseReceptionHandler(w http.ResponseWriter, r *http.Request) {

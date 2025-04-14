@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/kosttiik/pvz-service/internal/metrics"
 	"github.com/kosttiik/pvz-service/internal/models"
 	"github.com/kosttiik/pvz-service/internal/repository"
 	"github.com/kosttiik/pvz-service/internal/utils"
@@ -82,6 +83,7 @@ func CreatePVZHandler(w http.ResponseWriter, r *http.Request) {
 			utils.WriteError(w, "Failed to create pvz", http.StatusInternalServerError)
 			return
 		}
+		metrics.PvzCreatedTotal.Inc()
 	case <-r.Context().Done():
 		utils.WriteError(w, "Request timeout", http.StatusGatewayTimeout)
 		return

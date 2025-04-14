@@ -39,13 +39,15 @@ services:
     volumes:
       - redisdata:/data
 
-  # prometheus:
-  #   image: prom/prometheus
-  #   ports:
-  #     - "9000:9090"
-  #   volumes:
-  #     - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-  #   restart: always
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9000:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: always
+    depends_on:
+      - app
 
 volumes:
   pgdata:
